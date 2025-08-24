@@ -1,6 +1,6 @@
 import telebot, requests
 
-BOT_TOKEN = "token"
+BOT_TOKEN = "6222500287:AAENdFeT-prd6l4E08hPSmanf8sM1jmdKTk"
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
 @bot.message_handler(commands=['tc'])
