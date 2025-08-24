@@ -1,57 +1,38 @@
-import os, asyncio, logging, aiohttp
-from aiohttp import web
-from aiogram import Bot, Dispatcher, Router
-from aiogram.types import Message
-from aiogram.filters import Command
+import telebot, requests
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TOKEN:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN ortam değişkeni eksik!")
+BOT_TOKEN = "token"
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-bot = Bot(TOKEN)
-dp = Dispatcher()
-router = Router()
-
-@router.message(Command("start"))
-async def start(m: Message):
-    await m.answer("Merhaba! /veri yaz, bir API'den örnek veri getireyim. 🔌")
-
-@router.message(Command("veri"))
-async def veri(m: Message):
-    # ÖRNEK: dış bir API'den veri çekiyoruz
-    # İstersen bu URL'yi kendi kullanmak istediğin API ile değiştir.
-    url = "https://api.quotable.io/random"
+@bot.message_handler(commands=['tc'])
+def tc_sorgu(message):
     try:
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, timeout=10) as r:
-                data = await r.json()
-                metin = data.get("content", "Veri bulunamadı")
-                yazar = data.get("author", "Bilinmeyen")
-                await m.answer(f"\"{metin}\"\n— {yazar}")
-    except Exception as e:
-        await m.answer(f"Üzgünüm, API çağrısında hata oluştu: {e}")
+        args = message.text.split()
+        if len(args) < 2:
+            bot.reply_to(message, "TC giriniz: /tc 11111111110")
+            return
+        tc = args[1]
+        url = f"https://api.kahin.org/kahinapi/tc?tc={tc}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/127.0.0.0 Safari/537.36"
+        }
+        r = requests.get(url, headers=headers, verify=False, timeout=10)
+        data = r.json()["data"][0]
+        cevap = f"""
+<b>TC:</b> {data['TC']}
+<b>Adı:</b> {data['ADI']}
+<b>Soyadı:</b> {data['SOYADI']}
+<b>Doğum Tarihi:</b> {data['DOGUMTARIHI']}
+<b>Nüfus İl:</b> {data['NUFUSIL']}
+<b>Nüfus İlçe:</b> {data['NUFUSILCE']}
+<b>Anne Adı:</b> {data['ANNEADI']}
+<b>Anne TC:</b> {data['ANNETC']}
+<b>Baba Adı:</b> {data['BABAADI']}
+<b>Baba TC:</b> {data['BABATC']}
+"""
+        bot.reply_to(message, cevap)
+    except:
+        bot.reply_to(message, "Sorgu başarısız.")
 
-dp.include_router(router)
-
-# Koyeb sağlıklı çalışıyor kabul etsin diye minik bir HTTP sunucu
-async def health(_):
-    return web.Response(text="ok")
-
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    app = web.Application()
-    app.router.add_get("/", health)
-    app.router.add_get("/health", health)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", "8080"))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    logging.info(f"Health server {port} portunda.")
-
-    logging.info("Bot başlıyor (polling)…")
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-
-if __name__ == "__main__":
-    asyncio.run(main())
+bot.infinity_polling()
